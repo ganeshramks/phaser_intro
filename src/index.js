@@ -38,6 +38,8 @@ function preload () {
     // audio preload
     this.load.audio('collect-star', 'assets/collect-star.mp3')
     this.load.audio('explode', 'assets/explosion.mp3')
+    this.load.audio('game-over', 'assets/game-over.mp3')
+    this.load.audio('game-music', 'assets/in-game-music.mp3')
 
 }
 
@@ -100,11 +102,16 @@ function create () {
 
     this.physics.add.collider(player, bombs, hitBomb, null, this);
 
+    // Play Game music
+    gameMusic.play()
+
 }
 
 function addSounds(parent){
     collectStarSound = parent.sound.add('collect-star', {volume: 0.8})
     explosionSound = parent.sound.add('explode', {volume: 1.0})
+    gameOverSound = parent.sound.add('game-over', {volume: 1.0})
+    gameMusic = parent.sound.add('game-music', {volume: 0.35, loop:true})
 }
 
 function scoreAndPlayerHealth(parent) {
@@ -173,10 +180,14 @@ function hitBomb(player, bomb) {
     } else {
 
         // if playerHealthScore is <=0 then game is over
+        this.gameOver = true;
 
         player.setTint(0xff0000); // set player color to red
-        player.body.setGravityY(150);
+        player.body.setGravityY(150); // reduce player gravity to slowdown player fall
 
+
+        //stop the in game music
+        gameMusic.stop()
 
         // play explosion sound and remove it after play is complete
         explosionSound.play()
@@ -191,11 +202,11 @@ function hitBomb(player, bomb) {
         this.physics.world.removeCollider(playerPlatformCollider);
 
 
-        this.time.delayedCall(1500, () => { // After 2 seconds
+        this.time.delayedCall(2000, () => { // After 2 seconds
+            gameOverSound.play()
             this.physics.pause();
             gameOverText.visible = true;
             restartButton.visible = true;
-            this.gameOver = true;
         });
 
     }
@@ -226,11 +237,7 @@ function collectStar(player, star) {
     */
     if (stars.countActive(true) === 0) {
         // enable stars
-        stars.children.iterate((child)=>{
-            if (Math.random() < 0.48) { // just to not enable all stars
-                child.enableBody(true, child.x, 0, true, true);
-            }
-        });
+        bringBackRandomNumOfStars(stars)
 
         // create a bomb on the opposite half of the world where the player is
         var bombX = (player.x < halfWorldWidth) ? Phaser.Math.Between(halfWorldWidth, worldWidth) : Phaser.Math.Between(0, halfWorldWidth);
@@ -241,8 +248,14 @@ function collectStar(player, star) {
         bomb.setCollideWorldBounds(true)
         bomb.setVelocity(Phaser.Math.Between(-200, 200), 20);
     }
+}
 
-    
+function bringBackRandomNumOfStars(stars) {
+    stars.children.iterate((child)=>{
+        if (Math.random() < 0.48) { // just to not enable all stars
+            child.enableBody(true, child.x, 0, true, true);
+        }
+    });
 }
 
 function collectApple(player, apple) {
@@ -326,7 +339,7 @@ function createPlayerAnims(parent) {
 function createStarDust(parent) {
     stars = parent.physics.add.group({
         key: 'star', //give all child objects in the group the star texture
-        repeat: 9,
+        repeat: 0,
         setXY: {
             x:12, y:0, stepX:70
         }
@@ -372,5 +385,9 @@ function update() {
 
     if (cursors.up.isDown && player.body.touching.down) {
         player.setVelocityY(-660);
+    }
+
+    if (stars.countActive(true) === 0) {
+        bringBackRandomNumOfStars(stars)
     }
 }
