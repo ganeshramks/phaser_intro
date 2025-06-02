@@ -4,7 +4,7 @@
 
 ## 🎮 Game Overview
 
-The objective of the game is to collect as many stars as possible while avoiding bombs and maintaining your health. Here's how it works:
+The objective of this game is to collect as many stars as possible while avoiding bombs and maintaining your health. Here's how it works:
 
 1. **Star Collection**  
    - The player must collect stars scattered across the screen.  
