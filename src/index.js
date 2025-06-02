@@ -131,7 +131,7 @@ function scoreAndPlayerHealth(parent) {
 
     scoreTextPositionX = 16
     scoreTextPositionY = 16
-    scoreText = parent.add.text(scoreTextPositionX, scoreTextPositionY, 'Score: 0', { fontSize: '32px', fill: '#000' });
+    scoreText = parent.add.text(scoreTextPositionX, scoreTextPositionY, 'Stars: 0', { fontSize: '20px', fill: '#000' });
 
     //player health
     playerHealthScore = 100
@@ -235,8 +235,8 @@ function collectStar(player, star) {
     collectStarSound.play()
 
     //Now update the score and the scoreText
-    score += 10;
-    scoreText.setText('Score: '+score)
+    score += 1;
+    scoreText.setText('Stars: '+score)
 
     
     /*        

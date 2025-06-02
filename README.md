@@ -8,7 +8,7 @@ The objective of this game is to collect as many stars as possible while avoidin
 
 1. **Star Collection**  
    - The player must collect stars scattered across the screen.  
-   - Each star collected earns the player **10 points**.
+   - Each star collected increases the star count by **1**.
 
 2. **Star and Bomb Generation**  
    - Once all stars are collected, the game spawns a **random number of new stars** along with **a bomb**.
