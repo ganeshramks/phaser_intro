@@ -2,6 +2,16 @@ worldWidth = 800;
 worldHeight = 600;
 halfWorldWidth = worldWidth/2;
 
+inGameDevConfig = {
+    starRepeatCount: 0
+}
+
+inGameProdConfig = {
+    starRepeatCount: 9
+}
+
+inGameConfig = process.env.NODE_ENV == 'development' ? inGameDevConfig : inGameProdConfig;
+
 var config = {
     type: Phaser.AUTO,
     width: worldWidth,
@@ -339,7 +349,7 @@ function createPlayerAnims(parent) {
 function createStarDust(parent) {
     stars = parent.physics.add.group({
         key: 'star', //give all child objects in the group the star texture
-        repeat: 0,
+        repeat: inGameConfig.starRepeatCount,
         setXY: {
             x:12, y:0, stepX:70
         }
