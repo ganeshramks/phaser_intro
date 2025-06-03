@@ -3,11 +3,13 @@ worldHeight = 600;
 halfWorldWidth = worldWidth/2;
 
 inGameDevConfig = {
-    starRepeatCount: 0
+    starRepeatCount: 0,
+    remainingTime: 20
 }
 
 inGameProdConfig = {
-    starRepeatCount: 9
+    starRepeatCount: 9,
+    remainingTime: 150
 }
 
 inGameConfig = process.env.NODE_ENV == 'development' ? inGameDevConfig : inGameProdConfig;
@@ -39,6 +41,7 @@ function preload () {
     this.load.image('sky', 'assets/sky.png');
     this.load.image('ground', 'assets/grass-platform.png');
     this.load.image('star', 'assets/star.png');
+    this.load.image('health', 'assets/health.png');
     this.load.image('bomb', 'assets/bomb.png');
     this.load.spritesheet('dude', 'assets/dude.png', { frameWidth: 32, frameHeight: 48 });
     this.load.image('restart', 'assets/restart.png');
@@ -56,7 +59,6 @@ function preload () {
 
 function create () {
     this.add.image(400, 300, 'sky');
-    // this.add.image(400, 300,  'star');
     //clouds
     this.add.image(700, 60, 'cloud').setScale(0.8);
     this.add.image(350, 36, 'cloud').setScale(0.8);
@@ -112,6 +114,9 @@ function create () {
 
     this.physics.add.collider(player, bombs, hitBomb, null, this);
 
+
+    //Start Game Timer
+    startGameTimer(this)
     // Play Game music
     gameMusic.play()
 
@@ -124,20 +129,53 @@ function addSounds(parent){
     gameMusic = parent.sound.add('game-music', {volume: 0.35, loop:true})
 }
 
+function startGameTimer(parent) {
+
+    remainingTime = inGameConfig.remainingTime;
+
+    timerText = parent.add.text(400, 10, 'TIME ' + remainingTime + ' sec', { fontSize: '16px', fill: '#fff', fontStyle: "bold" });
+
+    timerEvent = parent.time.addEvent({
+        delay: 1000, // Execute every second
+        callback: updateTimer,
+        callbackScope: parent,
+        loop: true
+    });
+}
+
+function updateTimer() {
+    remainingTime -= 1
+    timerText.setText('TIME ' + remainingTime + ' sec')
+    if (remainingTime <=0 || this.gameOver) {
+        timerEvent.remove(false) // remove the timer event
+        // handle gamve over logic
+        setGameOver(this)
+    }
+}
+
 function scoreAndPlayerHealth(parent) {
+
+    // star icon
+    parent.add.image(120, 20,  'star').setScale(0.6);
 
     //score configurations
     score = 0
 
-    scoreTextPositionX = 16
-    scoreTextPositionY = 16
-    scoreText = parent.add.text(scoreTextPositionX, scoreTextPositionY, 'Stars: 0', { fontSize: '20px', fill: '#000' });
+    scoreTextPositionX = 131
+    scoreTextPositionY = 10
+    scoreText = parent.add.text(scoreTextPositionX, scoreTextPositionY, 'x0', { fontSize: '18px', fill: '#fff', fontStyle: "bold" });
 
-    //player health
+    
+    //Player health
+    
+    //health icon
+    parent.add.image(586, 20, 'health').setScale(0.9);
+
+    //health score
     playerHealthScore = 100
     playerHealthTextPosX = 600
-    playerHealthTextPosY = 16
-    playerHealthText = parent.add.text(playerHealthTextPosX, playerHealthTextPosY, 'Health: '+playerHealthScore, {fontSize: "20px", fill:"#11ff11"});
+    playerHealthTextPosY = 10
+    playerHealthText = parent.add.text(playerHealthTextPosX, playerHealthTextPosY, playerHealthScore, {fontSize: "18px", fill:"#11ff11", fontStyle: "bold"});
 
 }
 
@@ -182,7 +220,7 @@ function hitBomb(player, bomb) {
     };
 
     playerHealthScore -= 10
-    playerHealthText.setText('Health: '+playerHealthScore)
+    playerHealthText.setText(playerHealthScore)
 
     if (playerHealthScore > 0) {
         playerHealthScore <= 60 ? (player.setTint(0xef9700), playerHealthText.setColor('#ef9700'), createApple(this)) : player.setTint(0xffffff);
@@ -190,37 +228,48 @@ function hitBomb(player, bomb) {
     } else {
 
         // if playerHealthScore is <=0 then game is over
-        this.gameOver = true;
-
-        player.setTint(0xff0000); // set player color to red
-        player.body.setGravityY(150); // reduce player gravity to slowdown player fall
-
-
-        //stop the in game music
-        gameMusic.stop()
-
-        // play explosion sound and remove it after play is complete
-        explosionSound.play()
-        explosionSound.on('complete', () => {
-            this.sound.remove(explosionSound); // Remove the sound object
-        });
-
-        player.anims.play('turn');
-
-        // player.setCollideWorldBounds(false);
-
-        this.physics.world.removeCollider(playerPlatformCollider);
-
-
-        this.time.delayedCall(2000, () => { // After 2 seconds
-            gameOverSound.play()
-            this.physics.pause();
-            gameOverText.visible = true;
-            restartButton.visible = true;
-        });
+        setGameOver(this)
 
     }
 
+}
+
+function setGameOver(parent) {
+    
+    if (parent.gameOver) { // like acquiring lock to ensure single execution of setGameOver
+        return;
+    }
+    parent.gameOver = true;
+
+    player.setTint(0xff0000); // set player color to red
+    
+    // make player jump up with a certain velocity and land 
+    player.setVelocityY(-10);
+    player.body.setGravityY(200); // reduce player gravity to slowdown player fall
+
+
+    //stop the in game music
+    gameMusic.stop()
+
+    // play explosion sound and remove it after play is complete
+    explosionSound.play()
+    explosionSound.on('complete', () => {
+        parent.sound.remove(explosionSound); // Remove the sound object
+    });
+
+    player.anims.play('turn');
+
+    // player.setCollideWorldBounds(false);
+
+    parent.physics.world.removeCollider(playerPlatformCollider);
+
+
+    parent.time.delayedCall(2000, () => { // After 2 seconds
+        gameOverSound.play()
+        parent.physics.pause();
+        gameOverText.visible = true;
+        restartButton.visible = true;
+    });
 }
 
 
@@ -236,7 +285,7 @@ function collectStar(player, star) {
 
     //Now update the score and the scoreText
     score += 1;
-    scoreText.setText('Stars: '+score)
+    scoreText.setText('x'+score)
 
     
     /*        
@@ -272,7 +321,7 @@ function collectApple(player, apple) {
     apple.disableBody(true, true)
     if (this.gameOver) return;
     playerHealthScore += 10
-    playerHealthText.setText('Health: '+playerHealthScore)
+    playerHealthText.setText(playerHealthScore)
     playerHealthScore > 60 ? (player.setTint(0xffffff), playerHealthText.setColor('#00ff00')) : null;
     apple.destroy();
     apples.remove(apple);
