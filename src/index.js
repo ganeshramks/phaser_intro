@@ -191,6 +191,11 @@ function createGameOverAndRestartObj(parent) {
     gameOverText = parent.add.text(gameOverTextPosX, gameOverTextPosY, 'Game Over', { fontSize: '40px', fill: '#ff0000' });
     gameOverText.visible = false;
 
+    playAgainPosX = 240
+    playAgainPosY = 200
+    palyAgainText = parent.add.text(playAgainPosX, playAgainPosY, 'Click START To Play', { fontSize: '25px', fill: '#ffad00' });
+    palyAgainText.visible = false;
+
     restartButton = parent.add.sprite(400, 300, 'restart');
     restartButton.setInteractive();
     restartButton.visible = false;
@@ -273,6 +278,7 @@ function setGameOver(parent) {
         gameOverSound.play()
         parent.physics.pause();
         gameOverText.visible = true;
+        palyAgainText.visible = true;
         restartButton.visible = true;
     });
 }
