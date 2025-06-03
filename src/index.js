@@ -4,7 +4,7 @@ halfWorldWidth = worldWidth/2;
 
 inGameDevConfig = {
     starRepeatCount: 0,
-    remainingTime: 8
+    remainingTime: 15
 }
 
 inGameProdConfig = {
@@ -47,6 +47,7 @@ function preload () {
     this.load.image('restart', 'assets/restart.png');
     this.load.image('cloud', 'assets/cloud.png');
     this.load.image('apple', 'assets/apple.png');
+    this.load.image('reset', 'assets/reset.png');
 
     // audio preload
     this.load.audio('collect-star', 'assets/collect-star.mp3')
@@ -60,16 +61,12 @@ function preload () {
 
 
 function create () {
+
+    this.gameStarted = false
+
     // this.add.image(400, 300, 'sky');
     sky = this.add.tileSprite(400, 300, this.game.config.width, this.game.config.height, 'sky');
     sky.setAlpha(1)
-    //clouds
-    // this.add.image(700, 60, 'cloud').setScale(0.8);
-    // cloud1 = this.add.tileSprite(700, 60, 800, 71, 'cloud');
-    // cloud1.repeat = false;
-    // this.add.image(350, 36, 'cloud').setScale(0.8);
-
-    // return
 
 
     createPlatforms(this);
@@ -80,16 +77,13 @@ function create () {
     scoreAndPlayerHealth(this);
     addSounds(this);
 
-    restartButton.on('pointerdown', () => {
+    resetButton.on('pointerdown', () => {
         this.scene.restart();
-
     });
 
-
-    // this.time.delayedCall(2000, () => { // After 2 seconds
-    //     player.setSize(80,80);
-    //     player.setDisplaySize(100, 100);
-    // });
+    startButton.on('pointerdown', ()=>{
+        startGame(this)
+    })
 
 
 
@@ -121,11 +115,9 @@ function create () {
 
     this.physics.add.collider(apples, platforms);
 
-    this.physics.add.collider(player, bombs, hitBomb, null, this);
+    playerBombCollider = this.physics.add.collider(player, bombs, hitBomb, null, this);
 
 
-    //Start Game Timer
-    startGameTimer(this)
     // Play Game music
     gameMusic.play()
 
@@ -133,11 +125,19 @@ function create () {
 
 function addSounds(parent){
     collectStarSound = parent.sound.add('collect-star', {volume: 0.8})
-    explosionSound = parent.sound.add('explode', {volume: 1.0})
-    gameOverSound = parent.sound.add('game-over', {volume: 1.0})
+    explosionSound = parent.sound.add('explode', {volume: 0.75})
+    gameOverSound = parent.sound.add('game-over', {volume: 0.8})
     gameMusic = parent.sound.add('game-music', {volume: 0.35, loop:true})
     powerUpSound = parent.sound.add('power-up', {volume:1.0})
-    punchSound = parent.sound.add('punch', {volume:0.75})
+    punchSound = parent.sound.add('punch', {volume:0.50})
+}
+
+function startGame(parent) {
+    palyAgainText.visible = false;
+    startButton.visible = false;
+    parent.gameStarted = true;
+    //Start Game Timer
+    startGameTimer(parent)
 }
 
 function startGameTimer(parent) {
@@ -201,12 +201,15 @@ function createGameOverAndRestartObj(parent) {
     playAgainPosX = 240
     playAgainPosY = 200
     palyAgainText = parent.add.text(playAgainPosX, playAgainPosY, 'Click START To Play', { fontSize: '25px', fill: '#ffad00' });
-    palyAgainText.visible = false;
+    // palyAgainText.visible = false;
 
-    restartButton = parent.add.sprite(400, 300, 'restart');
-    restartButton.setInteractive();
-    restartButton.visible = false;
-    return restartButton;
+    resetButton = parent.add.sprite(400, 300, 'reset');
+    resetButton.setInteractive();
+    resetButton.visible = false;
+
+    startButton = parent.add.sprite(400, 300, 'restart');
+    startButton.setInteractive();
+    // startButton.visible = false;
 }
 
 function createApple(parent) {
@@ -279,15 +282,17 @@ function setGameOver(parent) {
 
     // player.setCollideWorldBounds(false);
 
+    // remove player's collider objecs with platform and bombs
+    parent.physics.world.removeCollider(playerBombCollider);
     parent.physics.world.removeCollider(playerPlatformCollider);
+
 
 
     parent.time.delayedCall(2000, () => { // After 2 seconds
         gameOverSound.play()
         parent.physics.pause();
         gameOverText.visible = true;
-        palyAgainText.visible = true;
-        restartButton.visible = true;
+        resetButton.visible = true;
     });
 }
 
