@@ -53,6 +53,7 @@ function preload () {
     this.load.audio('explode', 'assets/explosion.mp3')
     this.load.audio('game-over', 'assets/game-over.mp3')
     this.load.audio('game-music', 'assets/in-game-music.mp3')
+    this.load.audio('power-up', 'assets/power-up.mp3')
 
 }
 
@@ -127,6 +128,7 @@ function addSounds(parent){
     explosionSound = parent.sound.add('explode', {volume: 1.0})
     gameOverSound = parent.sound.add('game-over', {volume: 1.0})
     gameMusic = parent.sound.add('game-music', {volume: 0.35, loop:true})
+    powerUpSound = parent.sound.add('power-up', {volume:1.0})
 }
 
 function startGameTimer(parent) {
@@ -320,6 +322,7 @@ function bringBackRandomNumOfStars(stars) {
 function collectApple(player, apple) {
     apple.disableBody(true, true)
     if (this.gameOver) return;
+    powerUpSound.play()
     playerHealthScore += 10
     playerHealthText.setText(playerHealthScore)
     playerHealthScore > 60 ? (player.setTint(0xffffff), playerHealthText.setColor('#00ff00')) : null;
