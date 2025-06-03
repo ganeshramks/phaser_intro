@@ -133,7 +133,7 @@ function startGameTimer(parent) {
 
     remainingTime = inGameConfig.remainingTime;
 
-    timerText = parent.add.text(400, 10, 'TIME ' + remainingTime + ' sec', { fontSize: '16px', fill: '#fff', fontStyle: "bold" });
+    timerText = parent.add.text(400, 12, 'TIME ' + remainingTime + ' sec', { fontSize: '16px', fill: '#fff', fontStyle: "bold" });
 
     timerEvent = parent.time.addEvent({
         delay: 1000, // Execute every second
