@@ -54,6 +54,7 @@ function preload () {
     this.load.audio('game-over', 'assets/game-over.mp3')
     this.load.audio('game-music', 'assets/in-game-music.mp3')
     this.load.audio('power-up', 'assets/power-up.mp3')
+    this.load.audio('punch', 'assets/punch.mp3')
 
 }
 
@@ -129,6 +130,7 @@ function addSounds(parent){
     gameOverSound = parent.sound.add('game-over', {volume: 1.0})
     gameMusic = parent.sound.add('game-music', {volume: 0.35, loop:true})
     powerUpSound = parent.sound.add('power-up', {volume:1.0})
+    punchSound = parent.sound.add('punch', {volume:0.75})
 }
 
 function startGameTimer(parent) {
@@ -221,6 +223,7 @@ function hitBomb(player, bomb) {
         return
     };
 
+    punchSound.play()
     playerHealthScore -= 10
     playerHealthText.setText(playerHealthScore)
 
