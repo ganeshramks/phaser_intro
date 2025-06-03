@@ -4,12 +4,18 @@ halfWorldWidth = worldWidth/2;
 
 inGameDevConfig = {
     starRepeatCount: 0,
-    remainingTime: 15
+    remainingTime: 50,
+    totalPotions: 2,
+    immuneTime: 5,
+    winStarCount: 20
 }
 
 inGameProdConfig = {
     starRepeatCount: 9,
-    remainingTime: 150
+    remainingTime: 150,
+    totalPotions: 2,
+    immuneTime: 10,
+    winStarCount: 20
 }
 
 inGameConfig = process.env.NODE_ENV == 'development' ? inGameDevConfig : inGameProdConfig;
@@ -38,24 +44,28 @@ var game = new Phaser.Game(config);
 
 
 function preload () {
-    this.load.image('sky', 'assets/sky.png');
-    this.load.image('ground', 'assets/grass-platform.png');
-    this.load.image('star', 'assets/star.png');
-    this.load.image('health', 'assets/health.png');
-    this.load.image('bomb', 'assets/bomb.png');
-    this.load.spritesheet('dude', 'assets/dude.png', { frameWidth: 32, frameHeight: 48 });
-    this.load.image('restart', 'assets/restart.png');
-    this.load.image('cloud', 'assets/cloud.png');
-    this.load.image('apple', 'assets/apple.png');
-    this.load.image('reset', 'assets/reset.png');
+    this.load.image('sky', 'assets/images/sky.png');
+    this.load.image('ground', 'assets/images/grass-platform.png');
+    this.load.image('star', 'assets/images/star.png');
+    this.load.image('health', 'assets/images/health.png');
+    this.load.image('bomb', 'assets/images/bomb.png');
+    this.load.spritesheet('dude', 'assets/images/dude.png', { frameWidth: 32, frameHeight: 48 });
+    this.load.image('restart', 'assets/images/restart.png');
+    this.load.image('cloud', 'assets/images/cloud.png');
+    this.load.image('apple', 'assets/images/apple.png');
+    this.load.image('reset', 'assets/images/reset.png');
+    this.load.image('potion', 'assets/images/potion.png');
 
     // audio preload
-    this.load.audio('collect-star', 'assets/collect-star.mp3')
-    this.load.audio('explode', 'assets/explosion.mp3')
-    this.load.audio('game-over', 'assets/game-over.mp3')
-    this.load.audio('game-music', 'assets/in-game-music.mp3')
-    this.load.audio('power-up', 'assets/power-up.mp3')
-    this.load.audio('punch', 'assets/punch.mp3')
+    this.load.audio('collect-star', 'assets/sounds/collect-star.mp3')
+    this.load.audio('explode', 'assets/sounds/explosion.mp3')
+    this.load.audio('game-over', 'assets/sounds/game-over.mp3')
+    this.load.audio('game-music', 'assets/sounds/in-game-music.mp3')
+    this.load.audio('power-up', 'assets/sounds/power-up.mp3')
+    this.load.audio('punch', 'assets/sounds/punch.mp3')
+    this.load.audio('jump', 'assets/sounds/jump.mp3')
+    this.load.audio('drink-potion', 'assets/sounds/drink-potion.mp3')
+    this.load.audio('capture-bomb', 'assets/sounds/bombCapture.mp3')
 
 }
 
@@ -63,6 +73,9 @@ function preload () {
 function create () {
 
     this.gameStarted = false
+    this.totalPotionsReleased = 0
+    this.isPlayerImmune = false
+    this.potionReleaseTime = Phaser.Math.Between(inGameConfig.remainingTime/3, inGameConfig.remainingTime/1.5)
 
     // this.add.image(400, 300, 'sky');
     sky = this.add.tileSprite(400, 300, this.game.config.width, this.game.config.height, 'sky');
@@ -106,6 +119,14 @@ function create () {
     this.physics.add.overlap(player, apples, collectApple, null, this);
 
 
+    //potion group
+    potions = this.physics.add.group();
+    //set overlap between player and potion
+    this.physics.add.overlap(player, potions, collectPotion, null, this);
+
+
+    //set colliders between potion and platforms
+    this.physics.add.collider(potions, platforms);
 
 
     // colliders
@@ -118,24 +139,26 @@ function create () {
     playerBombCollider = this.physics.add.collider(player, bombs, hitBomb, null, this);
 
 
-    // Play Game music
-    gameMusic.play()
-
 }
 
 function addSounds(parent){
-    collectStarSound = parent.sound.add('collect-star', {volume: 0.8})
-    explosionSound = parent.sound.add('explode', {volume: 0.75})
-    gameOverSound = parent.sound.add('game-over', {volume: 0.8})
+    collectStarSound = parent.sound.add('collect-star', {volume: 0.7})
+    explosionSound = parent.sound.add('explode', {volume: 0.65})
+    gameOverSound = parent.sound.add('game-over', {volume: 0.75})
     gameMusic = parent.sound.add('game-music', {volume: 0.35, loop:true})
-    powerUpSound = parent.sound.add('power-up', {volume:1.0})
+    powerUpSound = parent.sound.add('power-up', {volume:0.8})
     punchSound = parent.sound.add('punch', {volume:0.50})
+    drinkPotionSound = parent.sound.add('drink-potion', {volume:0.7})
+    jumpSound = parent.sound.add('jump', {volume:0.8})
+    captureBombSound = parent.sound.add('capture-bomb', {volume:0.8})
 }
 
 function startGame(parent) {
     palyAgainText.visible = false;
     startButton.visible = false;
     parent.gameStarted = true;
+    // Play Game music
+    gameMusic.play()
     //Start Game Timer
     startGameTimer(parent)
 }
@@ -148,19 +171,25 @@ function startGameTimer(parent) {
 
     timerEvent = parent.time.addEvent({
         delay: 1000, // Execute every second
-        callback: updateTimer,
+        callback: updateGameByTime,
         callbackScope: parent,
         loop: true
     });
 }
 
-function updateTimer() {
+function updateGameByTime() {
     remainingTime -= 1
     timerText.setText('TIME ' + remainingTime + ' sec')
     if (remainingTime <=0 || this.gameOver) {
         timerEvent.remove(false) // remove the timer event
         // handle gamve over logic
         setGameOver(this)
+    }
+
+    // release potion if the following conditions are met
+    if (remainingTime == this.potionReleaseTime && bombs.countActive(true) >= 5) {
+        // release potion
+        createPotion(this)
     }
 }
 
@@ -180,7 +209,7 @@ function scoreAndPlayerHealth(parent) {
     //Player health
     
     //health icon
-    parent.add.image(586, 20, 'health').setScale(0.9);
+    parent.add.image(586, 20, 'health').setScale(0.9).setAlpha(0.75);
 
     //health score
     playerHealthScore = 100
@@ -232,11 +261,42 @@ function createApple(parent) {
     }
 }
 
+function createPotion(parent){
+    // create one potion as per below conditions 
+    if (potions.countActive(true) === 0 && parent.totalPotionsReleased < inGameConfig.totalPotions) {
+        // potion should drop on the opposite side of the player
+        let potionVelocityVector = -1;
+        var potionX = (player.x < halfWorldWidth) ? Phaser.Math.Between(halfWorldWidth, worldWidth) : (Phaser.Math.Between(0, halfWorldWidth), potionVelocityVector = 1);
+        var potionY = 16;
+
+        let potion = potions.create(potionX, potionY, 'potion');
+
+        potion.setBounce(0.1);
+        potion.setVelocityX(10*potionVelocityVector)
+        potion.setCollideWorldBounds(false)
+    }
+}
+
 function hitBomb(player, bomb) {
 
-    if (this.gameOver){
+    if (this.gameOver || !this.gameStarted){
         return
-    };
+    }
+
+    //if player is immune then dont consider the hit
+    if (this.isPlayerImmune) {
+        //play the bom collect sound
+        captureBombSound.play()
+
+        // also remove the collected bombs
+        bomb.disableBody(true,true)
+        bomb.destroy()
+        bombs.remove(bomb)
+
+        //implement later: increase score count
+
+        return
+    }
 
     punchSound.play()
     playerHealthScore -= 10
@@ -247,12 +307,10 @@ function hitBomb(player, bomb) {
         playerHealthScore <= 60 ? (player.setTint(0xef9700), playerHealthText.setColor('#ef9700'), createApple(this)) : player.setTint(0xffffff);
 
     } else {
-
         // if playerHealthScore is <=0 then game is over
         setGameOver(this)
 
     }
-
 }
 
 function setGameOver(parent) {
@@ -262,7 +320,7 @@ function setGameOver(parent) {
     }
     parent.gameOver = true;
 
-    player.setTint(0xff0000); // set player color to red
+    player.setTint(0xbb0a1e); // set player color to red
     
     // make player jump up with a certain velocity and land 
     player.setVelocityY(-200);
@@ -295,7 +353,6 @@ function setGameOver(parent) {
         resetButton.visible = true;
     });
 }
-
 
 function collectStar(player, star) {
     // disable the physcis body of the star and hide it
@@ -350,6 +407,30 @@ function collectApple(player, apple) {
     playerHealthScore > 60 ? (player.setTint(0xffffff), playerHealthText.setColor('#00ff00')) : null;
     apple.destroy();
     apples.remove(apple);
+}
+
+function collectPotion(player, potion) {
+    potion.disableBody(true, true)
+    potion.destroy()
+    potions.remove(potion)
+    if (this.gameOver || !this.gameStarted) {return;}
+    
+    drinkPotionSound.play()
+    playerHealthScore += 50 //increase health by 50
+    playerHealthText.setText(playerHealthScore)
+    playerHealthScore > 60 ? (player.setTint(0xffffff), playerHealthText.setColor('#00ff00')) : null;
+
+    /*
+        Main:
+        1. Keep the player immune against bombs for configuration count of seconds
+        To achieve this set player immunity to true and reset to false after the said duration
+    */
+
+    this.isPlayerImmune = true
+    this.time.delayedCall(inGameConfig.immuneTime*1000, ()=>{
+        this.isPlayerImmune = false
+    }, [], this)
+
 }
 
 function createPlatforms(parent) {
@@ -441,7 +522,7 @@ function createStarDust(parent) {
 */
 function update() {
 
-    if (this.gameOver) {
+    if (this.gameOver || !this.gameStarted) {
       return; // Don't update if game is over
     }
 
@@ -472,6 +553,7 @@ function update() {
 
     if (cursors.up.isDown && player.body.touching.down) {
         player.setVelocityY(-660);
+        jumpSound.play();
     }
 
     if (stars.countActive(true) === 0) {
