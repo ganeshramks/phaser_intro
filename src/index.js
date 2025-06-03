@@ -4,7 +4,7 @@ halfWorldWidth = worldWidth/2;
 
 inGameDevConfig = {
     starRepeatCount: 0,
-    remainingTime: 20
+    remainingTime: 8
 }
 
 inGameProdConfig = {
@@ -60,10 +60,16 @@ function preload () {
 
 
 function create () {
-    this.add.image(400, 300, 'sky');
+    // this.add.image(400, 300, 'sky');
+    sky = this.add.tileSprite(400, 300, this.game.config.width, this.game.config.height, 'sky');
+    sky.setAlpha(1)
     //clouds
-    this.add.image(700, 60, 'cloud').setScale(0.8);
-    this.add.image(350, 36, 'cloud').setScale(0.8);
+    // this.add.image(700, 60, 'cloud').setScale(0.8);
+    // cloud1 = this.add.tileSprite(700, 60, 800, 71, 'cloud');
+    // cloud1.repeat = false;
+    // this.add.image(350, 36, 'cloud').setScale(0.8);
+
+    // return
 
 
     createPlatforms(this);
@@ -75,7 +81,8 @@ function create () {
     addSounds(this);
 
     restartButton.on('pointerdown', () => {
-      this.scene.restart();
+        this.scene.restart();
+
     });
 
 
@@ -231,6 +238,7 @@ function hitBomb(player, bomb) {
     punchSound.play()
     playerHealthScore -= 10
     playerHealthText.setText(playerHealthScore)
+    // console.log("playerHealthScore:", playerHealthScore)
 
     if (playerHealthScore > 0) {
         playerHealthScore <= 60 ? (player.setTint(0xef9700), playerHealthText.setColor('#ef9700'), createApple(this)) : player.setTint(0xffffff);
@@ -254,7 +262,7 @@ function setGameOver(parent) {
     player.setTint(0xff0000); // set player color to red
     
     // make player jump up with a certain velocity and land 
-    player.setVelocityY(-10);
+    player.setVelocityY(-200);
     player.body.setGravityY(200); // reduce player gravity to slowdown player fall
 
 
@@ -385,9 +393,10 @@ function createPlayer(parent) {
 }
 
 function createPlayerAnims(parent) {
+
     parent.anims.create({
-        key: 'left',
-        frames: parent.anims.generateFrameNumbers('dude', { start: 0, end: 3}),
+        key: 'right',
+        frames: parent.anims.generateFrameNumbers('dude', { start: 5, end: 8}),
         frameRate: 15,
         repeat: -1, //keep looping
     });
@@ -399,8 +408,8 @@ function createPlayerAnims(parent) {
     });
 
     parent.anims.create({
-        key: 'right',
-        frames: parent.anims.generateFrameNumbers('dude', { start: 5, end: 8}),
+        key: 'left',
+        frames: parent.anims.generateFrameNumbers('dude', { start: 0, end: 3}),
         frameRate: 15,
         repeat: -1, //keep looping
     });
@@ -431,6 +440,8 @@ function update() {
       return; // Don't update if game is over
     }
 
+    // keep background sky moving
+    sky.tilePositionX -= 0.10;
 
     cursors = this.input.keyboard.createCursorKeys(); // This populates the cursors object with four properties: up, down, left, right, that are all instances of Key objects.
 
