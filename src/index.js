@@ -3,11 +3,11 @@ worldHeight = 600;
 halfWorldWidth = worldWidth/2;
 
 inGameDevConfig = {
-    starRepeatCount: 0,
-    remainingTime: 50,
+    starRepeatCount: 3,
+    remainingTime: 20,
     totalPotions: 2,
     immuneTime: 5,
-    winStarCount: 20
+    winStarCount: 10
 }
 
 inGameProdConfig = {
@@ -55,6 +55,7 @@ function preload () {
     this.load.image('apple', 'assets/images/apple.png');
     this.load.image('reset', 'assets/images/reset.png');
     this.load.image('potion', 'assets/images/potion.png');
+    this.load.image('warp-pipe', 'assets/images/warp-pipe.png');
 
     // audio preload
     this.load.audio('collect-star', 'assets/sounds/collect-star.mp3')
@@ -66,6 +67,8 @@ function preload () {
     this.load.audio('jump', 'assets/sounds/jump.mp3')
     this.load.audio('drink-potion', 'assets/sounds/drink-potion.mp3')
     this.load.audio('capture-bomb', 'assets/sounds/bombCapture.mp3')
+    this.load.audio('level-complete', 'assets/sounds/level-complete.mp3')
+    this.load.audio('enter-pipe', 'assets/sounds/enter-pipe.mp3')
 
 }
 
@@ -73,8 +76,10 @@ function preload () {
 function create () {
 
     this.gameStarted = false
+    this.levelCompleted = false
     this.totalPotionsReleased = 0
     this.isPlayerImmune = false
+    isPlayerOnPipe = false
     this.potionReleaseTime = Phaser.Math.Between(inGameConfig.remainingTime/3, inGameConfig.remainingTime/1.5)
 
     // this.add.image(400, 300, 'sky');
@@ -123,10 +128,54 @@ function create () {
     potions = this.physics.add.group();
     //set overlap between player and potion
     this.physics.add.overlap(player, potions, collectPotion, null, this);
-
-
     //set colliders between potion and platforms
     this.physics.add.collider(potions, platforms);
+
+    //define the warp pipe sprite and disable its display and physics body 
+    pipeHeight = 39;
+    groundTopY = 560;
+    // Start with pipe below ground (offscreen)
+    warpPipe = this.physics.add.staticSprite(400, groundTopY + pipeHeight / 2, 'warp-pipe');
+    setActiveState(warpPipe, false)
+    this.physics.add.collider(player, warpPipe);
+    // overlap
+    // enter pipe
+    pipeSensor = this.physics.add.sprite(400, groundTopY + pipeHeight / 2 - 60, null)
+      .setSize(32, 3)
+      .setVisible(false)
+      .setImmovable(true);
+    pipeSensor.body.setAllowGravity(false)
+
+    enteringPipe = false
+    this.physics.add.overlap(player, pipeSensor, () => {
+      if (cursors.down.isDown && !enteringPipe) {
+        enteringPipe = true;
+        enterPipe();
+      }
+    }, null, this);
+
+    enterPipe = () => {
+        console.log("enter pipe")
+        warpPipe.body.updateFromGameObject();
+        enterPipeSound.play()
+
+
+        this.physics.world.disable(player); // prevent collisions during animation
+
+        this.tweens.add({
+            targets: player,
+            x: pipeSensor.x,
+            y: player.y + 32, // move into pipe (adjust as needed)
+            duration: 1000,
+            ease: 'Sine.easeIn',
+            onComplete: () => {
+              player.setVisible(false);
+              this.timerEvent.remove(false);
+              levelComplText.visible=true;
+              resetButton.visible=true;
+            }
+        });
+    }
 
 
     // colliders
@@ -141,6 +190,13 @@ function create () {
 
 }
 
+function setActiveState(spriteObj, stateBool) {
+  spriteObj.setVisible(stateBool);
+  spriteObj.body.enable = stateBool;
+}
+
+
+
 function addSounds(parent){
     collectStarSound = parent.sound.add('collect-star', {volume: 0.7})
     explosionSound = parent.sound.add('explode', {volume: 0.65})
@@ -151,6 +207,8 @@ function addSounds(parent){
     drinkPotionSound = parent.sound.add('drink-potion', {volume:0.7})
     jumpSound = parent.sound.add('jump', {volume:0.8})
     captureBombSound = parent.sound.add('capture-bomb', {volume:0.8})
+    levelCompleteSound = parent.sound.add('level-complete', {volume:0.75})
+    enterPipeSound = parent.sound.add('enter-pipe', {volume:0.75})
 }
 
 function startGame(parent) {
@@ -169,7 +227,7 @@ function startGameTimer(parent) {
 
     timerText = parent.add.text(400, 12, 'TIME ' + remainingTime + ' sec', { fontSize: '16px', fill: '#fff', fontStyle: "bold" });
 
-    timerEvent = parent.time.addEvent({
+    parent.timerEvent = parent.time.addEvent({
         delay: 1000, // Execute every second
         callback: updateGameByTime,
         callbackScope: parent,
@@ -181,7 +239,7 @@ function updateGameByTime() {
     remainingTime -= 1
     timerText.setText('TIME ' + remainingTime + ' sec')
     if (remainingTime <=0 || this.gameOver) {
-        timerEvent.remove(false) // remove the timer event
+        this.timerEvent.remove(false) // remove the timer event
         // handle gamve over logic
         setGameOver(this)
     }
@@ -191,6 +249,12 @@ function updateGameByTime() {
         // release potion
         createPotion(this)
     }
+
+    //bring back stars randomly
+    if (Math.random() < 0.80) {
+        bringBackRandomNumOfStars(stars, score)
+    }
+
 }
 
 function scoreAndPlayerHealth(parent) {
@@ -226,6 +290,11 @@ function createGameOverAndRestartObj(parent) {
     gameOverTextPosY = 100
     gameOverText = parent.add.text(gameOverTextPosX, gameOverTextPosY, 'Game Over', { fontSize: '40px', fill: '#ff0000' });
     gameOverText.visible = false;
+
+    levelComplPosX = 240
+    levelComplPosY = 100
+    levelComplText = parent.add.text(levelComplPosX, levelComplPosY, 'Congratulations!', { fontSize: '40px', fill: '#00ff00' });
+    levelComplText.visible = false;
 
     playAgainPosX = 240
     playAgainPosY = 200
@@ -320,6 +389,7 @@ function setGameOver(parent) {
     }
     parent.gameOver = true;
 
+    player.setDepth(2)
     player.setTint(0xbb0a1e); // set player color to red
     
     // make player jump up with a certain velocity and land 
@@ -359,7 +429,7 @@ function collectStar(player, star) {
     // star has its physics body disabled and its parent Game Object is made inactive and invisible, which removes it from display
     star.disableBody(true, true);
 
-    if (this.gameOver) return;
+    if (this.gameOver || this.levelCompleted) return;
 
     // play star collect sound
     collectStarSound.play()
@@ -368,6 +438,40 @@ function collectStar(player, star) {
     score += 1;
     scoreText.setText('x'+score)
 
+    //check if player collected the required stars to win
+    if (score >= inGameConfig.winStarCount) {
+
+        //stop in game music and play level complete sound
+        gameMusic.stop()
+        levelCompleteSound.play()
+
+        //set levelCOmpleted to true
+        this.levelCompleted = true
+        
+        // Remove all bombs
+        // First `true`: remove from scene (destroy children)
+        // Second `true`: also destroy them
+        bombs.clear(true, true);
+
+
+        // Enable the warp pipe
+        setActiveState(warpPipe, true);
+        // add collider between player and pipe
+        this.physics.add.collider(player, warpPipe)
+        // raise the  pipe
+        this.tweens.add({
+            targets: warpPipe,
+            y: groundTopY - pipeHeight / 2,
+            duration: 2000,
+            ease: 'Sine.easeOut',
+            onComplete: () => {
+              warpPipe.body.updateFromGameObject();
+            }
+        });
+        
+        return;
+    }
+
     
     /*        
         Check if all stars are collected and if yes 
@@ -375,9 +479,9 @@ function collectStar(player, star) {
         1. create the stars again
         2. create the bomb everytime stars are all collected
     */
-    if (stars.countActive(true) === 0) {
+    if ((stars.countActive(true) === 0) && !this.levelCompleted) {
         // enable stars
-        bringBackRandomNumOfStars(stars)
+        bringBackRandomNumOfStars(stars, score)
 
         // create a bomb on the opposite half of the world where the player is
         var bombX = (player.x < halfWorldWidth) ? Phaser.Math.Between(halfWorldWidth, worldWidth) : Phaser.Math.Between(0, halfWorldWidth);
@@ -390,7 +494,9 @@ function collectStar(player, star) {
     }
 }
 
-function bringBackRandomNumOfStars(stars) {
+function bringBackRandomNumOfStars(stars, score) {
+    if (score >= inGameConfig.winStarCount || (stars.countActive(true) != 0)) {return;}
+
     stars.children.iterate((child)=>{
         if (Math.random() < 0.48) { // just to not enable all stars
             child.enableBody(true, child.x, 0, true, true);
@@ -446,7 +552,8 @@ function createPlatforms(parent) {
 
     // Create a TileSprite that is 4.71 times the width of the image
     ground = parent.add.tileSprite(0, 560, tileSpriteWidth, 32, 'ground')
-        .setOrigin(0, 0);
+        .setOrigin(0, 0)
+        .setDepth(1);
 
     platforms.add(ground);
     // ground.body.setImmovable(true); -> Not needed
@@ -462,7 +569,7 @@ function createPlatforms(parent) {
 function createPlayer(parent) {
     player = parent.physics.add.sprite(100, 450, 'dude');
     
-    player.setBounce(0.2);
+    // player.setBounce(0.2);
     player.setCollideWorldBounds(true);
 
     /*
@@ -554,9 +661,5 @@ function update() {
     if (cursors.up.isDown && player.body.touching.down) {
         player.setVelocityY(-660);
         jumpSound.play();
-    }
-
-    if (stars.countActive(true) === 0) {
-        bringBackRandomNumOfStars(stars)
     }
 }
