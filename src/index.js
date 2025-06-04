@@ -4,18 +4,18 @@ halfWorldWidth = worldWidth/2;
 
 inGameDevConfig = {
     starRepeatCount: 3,
-    remainingTime: 20,
+    remainingTime: 60,
     totalPotions: 2,
-    immuneTime: 5,
-    winStarCount: 10
+    immuneTime: 12,
+    winStarCount: 20
 }
 
 inGameProdConfig = {
     starRepeatCount: 9,
-    remainingTime: 150,
-    totalPotions: 2,
+    remainingTime: 240,
+    totalPotions: 4,
     immuneTime: 10,
-    winStarCount: 20
+    winStarCount: 50
 }
 
 inGameConfig = process.env.NODE_ENV == 'development' ? inGameDevConfig : inGameProdConfig;
@@ -56,6 +56,7 @@ function preload () {
     this.load.image('reset', 'assets/images/reset.png');
     this.load.image('potion', 'assets/images/potion.png');
     this.load.image('warp-pipe', 'assets/images/warp-pipe.png');
+    this.load.image('hourglass', 'assets/images/hourglass.png');
 
     // audio preload
     this.load.audio('collect-star', 'assets/sounds/collect-star.mp3')
@@ -79,6 +80,8 @@ function create () {
     this.levelCompleted = false
     this.totalPotionsReleased = 0
     this.isPlayerImmune = false
+    iscreatePotion = false
+    playerImmuneTime = 0
     isPlayerOnPipe = false
     this.potionReleaseTime = Phaser.Math.Between(inGameConfig.remainingTime/3, inGameConfig.remainingTime/1.5)
 
@@ -155,7 +158,6 @@ function create () {
     }, null, this);
 
     enterPipe = () => {
-        console.log("enter pipe")
         warpPipe.body.updateFromGameObject();
         enterPipeSound.play()
 
@@ -225,7 +227,9 @@ function startGameTimer(parent) {
 
     remainingTime = inGameConfig.remainingTime;
 
-    timerText = parent.add.text(400, 12, 'TIME ' + remainingTime + ' sec', { fontSize: '16px', fill: '#fff', fontStyle: "bold" });
+    parent.add.image(385, 20,  'hourglass').setScale(0.85);
+
+    timerText = parent.add.text(400, 12, remainingTime + ' sec', { fontSize: '16px', fill: '#fff', fontStyle: "bold" });
 
     parent.timerEvent = parent.time.addEvent({
         delay: 1000, // Execute every second
@@ -237,7 +241,7 @@ function startGameTimer(parent) {
 
 function updateGameByTime() {
     remainingTime -= 1
-    timerText.setText('TIME ' + remainingTime + ' sec')
+    timerText.setText(remainingTime + ' sec')
     if (remainingTime <=0 || this.gameOver) {
         this.timerEvent.remove(false) // remove the timer event
         // handle gamve over logic
@@ -245,9 +249,13 @@ function updateGameByTime() {
     }
 
     // release potion if the following conditions are met
-    if (remainingTime == this.potionReleaseTime && bombs.countActive(true) >= 5) {
+    if (remainingTime == this.potionReleaseTime) {
+        iscreatePotion = true
+    }
+    if (bombs.countActive(true) >=5 && iscreatePotion) {
         // release potion
         createPotion(this)
+        iscreatePotion = false
     }
 
     //bring back stars randomly
@@ -298,11 +306,12 @@ function createGameOverAndRestartObj(parent) {
 
     playAgainPosX = 240
     playAgainPosY = 200
-    palyAgainText = parent.add.text(playAgainPosX, playAgainPosY, 'Click START To Play', { fontSize: '25px', fill: '#ffad00' });
+    palyAgainText = parent.add.text(playAgainPosX, playAgainPosY, 'Click START To Play', { fontSize: '25px', fill: '#fff', fontStyle:"bold" });
     // palyAgainText.visible = false;
 
     resetButton = parent.add.sprite(400, 300, 'reset');
     resetButton.setInteractive();
+    resetButton.setAlpha(0.85)
     resetButton.visible = false;
 
     startButton = parent.add.sprite(400, 300, 'restart');
@@ -335,6 +344,7 @@ function createPotion(parent){
     if (potions.countActive(true) === 0 && parent.totalPotionsReleased < inGameConfig.totalPotions) {
         // potion should drop on the opposite side of the player
         let potionVelocityVector = -1;
+        parent.totalPotionsReleased += 1
         var potionX = (player.x < halfWorldWidth) ? Phaser.Math.Between(halfWorldWidth, worldWidth) : (Phaser.Math.Between(0, halfWorldWidth), potionVelocityVector = 1);
         var potionY = 16;
 
@@ -354,6 +364,7 @@ function hitBomb(player, bomb) {
 
     //if player is immune then dont consider the hit
     if (this.isPlayerImmune) {
+
         //play the bom collect sound
         captureBombSound.play()
 
@@ -397,8 +408,9 @@ function setGameOver(parent) {
     player.body.setGravityY(200); // reduce player gravity to slowdown player fall
 
 
-    //stop the in game music
+    //stop the in game music and levelCompl music
     gameMusic.stop()
+    levelCompleteSound.stop()
 
     // play explosion sound and remove it after play is complete
     explosionSound.play()
@@ -499,7 +511,8 @@ function bringBackRandomNumOfStars(stars, score) {
 
     stars.children.iterate((child)=>{
         if (Math.random() < 0.48) { // just to not enable all stars
-            child.enableBody(true, child.x, 0, true, true);
+            newChildPosX = Phaser.Math.Between(12, worldWidth-30)
+            child.enableBody(true, newChildPosX, 0, true, true);
         }
     });
 }
@@ -533,8 +546,12 @@ function collectPotion(player, potion) {
     */
 
     this.isPlayerImmune = true
-    this.time.delayedCall(inGameConfig.immuneTime*1000, ()=>{
+    playerImmuneTime = inGameConfig.immuneTime
+    //change game music playback speed to indicte to user that he is immune
+    gameMusic.setRate(1.25)
+    this.time.delayedCall(playerImmuneTime*1000, ()=>{
         this.isPlayerImmune = false
+        gameMusic.setRate(1)
     }, [], this)
 
 }
@@ -610,11 +627,12 @@ function createPlayerAnims(parent) {
 }
 
 function createStarDust(parent) {
+
     stars = parent.physics.add.group({
         key: 'star', //give all child objects in the group the star texture
         repeat: inGameConfig.starRepeatCount,
         setXY: {
-            x:12, y:0, stepX:70
+            x:Phaser.Math.Between(12,parent.game.config.width-100), y:0, stepX:Phaser.Math.Between(30,70)
         }
     });
 
