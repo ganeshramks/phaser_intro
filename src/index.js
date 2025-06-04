@@ -24,6 +24,7 @@ var config = {
     type: Phaser.AUTO,
     width: worldWidth,
     height: worldHeight,
+    parent: "game-container",
 
     physics: {
         default: 'arcade',
