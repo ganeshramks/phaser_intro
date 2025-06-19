@@ -51,7 +51,6 @@ function preload () {
     this.load.image('health', 'assets/images/health.png');
     this.load.image('bomb', 'assets/images/bomb.png');
     this.load.spritesheet('dude', 'assets/images/dude.png', { frameWidth: 32, frameHeight: 48 });
-    this.load.spritesheet('mario', 'assets/images/mario.png', { frameWidth: 42, frameHeight: 23 });
     this.load.image('restart', 'assets/images/restart.png');
     this.load.image('cloud', 'assets/images/cloud.png');
     this.load.image('apple', 'assets/images/apple.png');
@@ -87,9 +86,6 @@ function create () {
     isPlayerOnPipe = false
     this.potionReleaseTime = Phaser.Math.Between(inGameConfig.remainingTime/3, inGameConfig.remainingTime/1.5)
 
-    walkingLeft = false
-    walkingRight = false
-
     // this.add.image(400, 300, 'sky');
     sky = this.add.tileSprite(400, 300, this.game.config.width, this.game.config.height, 'sky');
     sky.setAlpha(1)
@@ -99,7 +95,6 @@ function create () {
     createStarDust(this);
     createPlayer(this);
     createPlayerAnims(this);
-    player.anims.play('stand-facing-right', true)
     createGameOverAndRestartObj(this);
     scoreAndPlayerHealth(this);
     addSounds(this);
@@ -424,7 +419,7 @@ function setGameOver(parent) {
         parent.sound.remove(explosionSound); // Remove the sound object
     });
 
-    player.anims.play('stand-facing-right');
+    player.anims.play('turn');
 
     // player.setCollideWorldBounds(false);
 
@@ -590,8 +585,7 @@ function createPlatforms(parent) {
 }
 
 function createPlayer(parent) {
-    player = parent.physics.add.sprite(100, 550, 'mario');
-    // player.setScale(2,2)
+    player = parent.physics.add.sprite(100, 450, 'dude');
     
     // player.setBounce(0.2);
     player.setCollideWorldBounds(true);
@@ -613,27 +607,21 @@ function createPlayerAnims(parent) {
 
     parent.anims.create({
         key: 'right',
-        frames: parent.anims.generateFrameNumbers('mario', { start: 5, end: 8}),
-        frameRate: 9,
+        frames: parent.anims.generateFrameNumbers('dude', { start: 5, end: 8}),
+        frameRate: 15,
         repeat: -1, //keep looping
     });
 
     parent.anims.create({
-        key: 'stand-facing-right',
-        frames: [ { key: 'mario', frame: 4 } ],
-        frameRate: 12,
-    });
-
-    parent.anims.create({
-        key: 'stand-facing-left',
-        frames: [ { key: 'mario', frame: 3 } ],
-        frameRate: 12,
+        key: 'turn',
+        frames: [ { key: 'dude', frame: 4 } ],
+        frameRate: 15,
     });
 
     parent.anims.create({
         key: 'left',
-        frames: parent.anims.generateFrameNumbers('mario', { start: 0, end: 3}),
-        frameRate: 9,
+        frames: parent.anims.generateFrameNumbers('dude', { start: 0, end: 3}),
+        frameRate: 15,
         repeat: -1, //keep looping
     });
 
@@ -650,7 +638,6 @@ function createStarDust(parent) {
     });
 
     stars.children.iterate((child)=>{
-        child.setScale(0.8)
         child.setBounceY(Phaser.Math.FloatBetween(0.4, 0.8))
     });
 }
@@ -671,39 +658,22 @@ function update() {
     cursors = this.input.keyboard.createCursorKeys(); // This populates the cursors object with four properties: up, down, left, right, that are all instances of Key objects.
 
     if (cursors.left.isDown) {
-
-        walkingLeft = true
-        walkingRight = false
         
-        player.setVelocityX(-80);
+        player.setVelocityX(-160);
 
         player.anims.play('left', true);
 
     } else if (cursors.right.isDown) {
-
-        walkingLeft = false
-        walkingRight = true
         
-        player.setVelocityX(80);
+        player.setVelocityX(160);
 
         player.anims.play('right', true);
     
-    } 
-    else {
+    } else {
     
         player.setVelocityX(0);
 
-        if (walkingLeft) {
-            player.anims.play('stand-facing-left', true)
-        }
-
-        if (walkingRight) {
-            player.anims.play('stand-facing-right', true)
-        }
-
-        if (!(walkingLeft || walkingRight)) {
-             player.anims.play('stand-facing-right', true)
-        }
+        player.anims.play('turn');
     
     }
 
